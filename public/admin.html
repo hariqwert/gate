@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Suite | Aetheris Gatekeeper</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;900&family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="gate.css">
+</head>
+<body style="justify-content: flex-start; padding: 40px 20px;">
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+
+  <!-- AUTH STATE 1: LOGIN MODAL -->
+  <div id="loginSection" class="glass-panel" style="margin-top: 60px;">
+    <div class="brand-badge" style="margin-bottom: 12px;">
+      <span class="pulse-dot"></span>
+      <span>Admin Security Gate</span>
+    </div>
+    <h1 class="title-display">Admin Authentication</h1>
+    <p class="sub-display">Enter your Admin Master Key to access the Gatekeeper suite.</p>
+
+    <form onsubmit="handleLogin(event)" style="margin-top: 24px;">
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 8px;">Master Key</label>
+        <input type="password" id="adminKeyInput" class="form-input" placeholder="••••••••••••••••" autofocus required>
+      </div>
+      <button type="submit" class="btn-primary" id="loginBtn">
+        Authenticate Session
+      </button>
+    </form>
+  </div>
+
+  <!-- AUTH STATE 2: ADMIN DASHBOARD SUITE -->
+  <main id="dashboardSection" class="glass-panel glass-panel-lg hidden">
+    <!-- Top Bar -->
+    <header style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-glass); padding-bottom: 20px; margin-bottom: 24px; flex-wrap: wrap; gap: 14px;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="brand-badge">
+            <span class="pulse-dot"></span>
+            <span>Bridge Online</span>
+          </div>
+          <span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);" id="mainServerPill">
+            Connected: ellamoonu.ai.studio
+          </span>
+        </div>
+        <h1 class="title-display" style="font-size: 24px; margin-top: 8px;">Aetheris Admin Suite</h1>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <button id="refreshBtn" class="btn-secondary" style="width: auto; padding: 8px 16px;" onclick="loadDashboard(true)">
+          🔄 Refresh
+        </button>
+        <button class="btn-secondary" style="width: auto; padding: 8px 16px;" onclick="openCreateInviteModal()">
+          ⚡ Create Invite
+        </button>
+        <button class="btn-danger-sm" style="padding: 9px 16px; font-size: 12px;" onclick="handleLogout()">
+          Log Out
+        </button>
+      </div>
+    </header>
+
+    <!-- Stat Cards Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-bottom: 28px;">
+      <!-- Card 1: Lock State -->
+      <div style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-glass); border-radius: 18px; padding: 18px;">
+        <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase;">Streaming Server</div>
+        <div id="statLockState" style="font-size: 18px; font-weight: 800; color: var(--emerald); margin-top: 6px;">Protected</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Zero-Trust Lock Active</div>
+      </div>
+
+      <!-- Card 2: Active PIN -->
+      <div style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-glass); border-radius: 18px; padding: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase;">Active 4-Hour PIN</div>
+          <button class="btn-secondary" style="width: auto; padding: 2px 8px; font-size: 10px;" onclick="rotatePin()">Force Rotate</button>
+        </div>
+        <div id="statActivePin" style="font-size: 22px; font-weight: 900; font-family: var(--font-mono); color: var(--cyan); margin-top: 6px; letter-spacing: 0.1em;">------</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Auto-rotates every 4 hours</div>
+      </div>
+
+      <!-- Card 3: Bound Devices -->
+      <div style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-glass); border-radius: 18px; padding: 18px;">
+        <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase;">Bound Devices</div>
+        <div id="statBoundCount" style="font-size: 22px; font-weight: 900; color: #fff; margin-top: 6px;">0</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Hardware Passkeys Enrolled</div>
+      </div>
+
+      <!-- Card 4: Active Invites -->
+      <div style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-glass); border-radius: 18px; padding: 18px;">
+        <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase;">Pending Invites</div>
+        <div id="statInviteCount" style="font-size: 22px; font-weight: 900; color: var(--amber); margin-top: 6px;">0</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Burn upon registration</div>
+      </div>
+    </div>
+
+    <!-- Section 1: Pending Single-Use Invites -->
+    <div style="margin-bottom: 32px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <h2 style="font-size: 16px; font-weight: 800; color: #fff;">Pending One-Time Invites</h2>
+        <span style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">Burn permanently on use</span>
+      </div>
+
+      <div style="background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-glass); border-radius: 16px; overflow-x: auto;">
+        <table class="cyber-table">
+          <thead>
+            <tr>
+              <th>Invite Token</th>
+              <th>Authorized Device Label</th>
+              <th>Created</th>
+              <th>Expires</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="invitesTableBody">
+            <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No pending invites.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Section 2: Authorized Bound Hardware Devices -->
+    <div>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <h2 style="font-size: 16px; font-weight: 800; color: #fff;">Authorized Hardware Devices (Passkeys)</h2>
+        <span style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">Hardware Enclave Bindings</span>
+      </div>
+
+      <div style="background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-glass); border-radius: 16px; overflow-x: auto;">
+        <table class="cyber-table">
+          <thead>
+            <tr>
+              <th>Hardware ID</th>
+              <th>Label</th>
+              <th>IP Address</th>
+              <th>User Agent</th>
+              <th>Enrolled</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="devicesTableBody">
+            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No devices bound yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- Create Invite Modal -->
+  <div id="createInviteModal" class="modal-overlay hidden" onclick="if(event.target === this) closeCreateInviteModal()">
+    <div class="glass-panel" style="max-width: 480px;">
+      <h3 style="font-size: 20px; font-weight: 800; color: #fff;">Create Single-Use Invite</h3>
+      <p style="font-size: 12px; color: var(--text-muted); margin: 6px 0 20px;">
+        Generate an unshareable one-time link. The token burns the moment the recipient enrolls their device.
+      </p>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 6px;">Device / Recipient Nickname</label>
+        <input type="text" id="inviteLabelInput" class="form-input" placeholder="e.g. Dad's Apple TV, Sara's iPhone" value="Authorized Device">
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 6px;">Expiration TTL</label>
+        <select id="inviteTtlSelect" class="form-input" style="background: #000;">
+          <option value="15">15 Minutes (High Security)</option>
+          <option value="60">1 Hour</option>
+          <option value="1440">24 Hours</option>
+        </select>
+      </div>
+
+      <button class="btn-primary" id="genInviteBtn" onclick="submitCreateInvite()" style="margin-bottom: 12px;">
+        ⚡ Generate Invite Link
+      </button>
+
+      <!-- Created Link Result Box -->
+      <div id="inviteResultBox" class="hidden" style="background: rgba(0, 240, 255, 0.08); border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 14px; padding: 14px; margin-top: 14px;">
+        <div style="font-size: 11px; text-transform: uppercase; color: var(--cyan); font-family: var(--font-mono); font-weight: 700;">
+          One-Time Invite URL:
+        </div>
+        <input type="text" id="generatedUrlInput" class="form-input" readonly style="margin: 8px 0; font-family: var(--font-mono); font-size: 11px;">
+        <button class="btn-secondary" onclick="copyInviteUrl()" style="padding: 8px;">
+          📋 Copy Link
+        </button>
+      </div>
+
+      <button class="btn-secondary" onclick="closeCreateInviteModal()" style="margin-top: 10px;">Close</button>
+    </div>
+  </div>
+
+  <script>
+    let sessionToken = sessionStorage.getItem('aetheris_admin_session') || '';
+
+    // Step 1: Check Auth
+    function checkAuth() {
+      if (sessionToken) {
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('dashboardSection').classList.remove('hidden');
+        loadDashboard();
+      } else {
+        document.getElementById('loginSection').classList.remove('hidden');
+        document.getElementById('dashboardSection').classList.add('hidden');
+      }
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const key = document.getElementById('adminKeyInput').value.trim();
+      const btn = document.getElementById('loginBtn');
+      btn.innerText = 'Authenticating...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key })
+        });
+        const data = await res.json();
+
+        if (data.status === 'success' && data.sessionToken) {
+          sessionToken = data.sessionToken;
+          sessionStorage.setItem('aetheris_admin_session', sessionToken);
+          checkAuth();
+        } else {
+          alert('Authentication Failed: ' + (data.message || 'Incorrect Key.'));
+          btn.innerText = 'Authenticate Session';
+          btn.disabled = false;
+        }
+      } catch (err) {
+        alert('Login Error: ' + err.message);
+        btn.innerText = 'Authenticate Session';
+        btn.disabled = false;
+      }
+    }
+
+    function handleLogout() {
+      sessionStorage.removeItem('aetheris_admin_session');
+      sessionToken = '';
+      checkAuth();
+    }
+
+    // Step 2: Load Dashboard
+    async function loadDashboard(showToast = false) {
+      const btn = document.getElementById('refreshBtn');
+      if (btn && showToast) {
+        btn.innerText = 'Refreshing...';
+      }
+      try {
+        const res = await fetch('/api/admin/dashboard', {
+          headers: { 'Authorization': `Bearer ${sessionToken}` }
+        });
+
+        if (res.status === 401) {
+          handleLogout();
+          return;
+        }
+
+        const data = await res.json();
+        if (data.status === 'success') {
+          renderDashboard(data);
+          if (btn && showToast) {
+            btn.innerText = '✓ Refreshed';
+            setTimeout(() => { if (btn) btn.innerHTML = '🔄 Refresh'; }, 1500);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load dashboard:', err);
+        if (btn) btn.innerHTML = '🔄 Refresh';
+      }
+    }
+
+    function renderDashboard(data) {
+      const { telemetry, boundDevices, activeInvites, mainServerUrl } = data;
+
+      if (telemetry) {
+        document.getElementById('statActivePin').innerText = telemetry.activePin || '------';
+        document.getElementById('statLockState').innerText = telemetry.siteLocked ? 'Zero-Trust Armed' : 'Unlocked';
+      }
+
+      document.getElementById('statBoundCount').innerText = boundDevices ? boundDevices.length : '0';
+      document.getElementById('statInviteCount').innerText = activeInvites ? activeInvites.length : '0';
+
+      // Render Pending Invites
+      const invitesTbody = document.getElementById('invitesTableBody');
+      if (activeInvites && activeInvites.length > 0) {
+        invitesTbody.innerHTML = activeInvites.map(inv => `
+          <tr>
+            <td style="font-family: var(--font-mono); color: var(--cyan);">${inv.token.substring(0, 16)}...</td>
+            <td><b>${escapeHtml(inv.label || 'Device')}</b></td>
+            <td style="font-size: 11px; color: var(--text-muted);">${new Date(inv.createdAt).toLocaleTimeString()}</td>
+            <td style="font-size: 11px; color: var(--amber);">${new Date(inv.expiresAt).toLocaleTimeString()}</td>
+            <td>
+              <button class="btn-danger-sm" onclick="cancelInvite('${inv.token}')">Cancel</button>
+            </td>
+          </tr>
+        `).join('');
+      } else {
+        invitesTbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No active pending invites.</td></tr>';
+      }
+
+      // Render Bound Devices
+      const devTbody = document.getElementById('devicesTableBody');
+      if (boundDevices && boundDevices.length > 0) {
+        devTbody.innerHTML = boundDevices.map(dev => {
+          const isAuth = dev.status === 'authorized';
+          const statusBadge = isAuth 
+            ? '<span style="color: var(--emerald); font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 6px; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3);">● Authorized</span>'
+            : '<span style="color: var(--rose); font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 6px; background: rgba(244,63,94,0.12); border: 1px solid rgba(244,63,94,0.3);">● Revoked</span>';
+          
+          const actionBtn = isAuth
+            ? `<button class="btn-danger-sm" onclick="revokeDevice('${dev.deviceId}')">Revoke</button>`
+            : `<button class="btn-secondary" style="width: auto; padding: 5px 12px; font-size: 11px; color: var(--emerald); border-color: rgba(16,185,129,0.4);" onclick="authorizeDevice('${dev.deviceId}')">Re-Authorize</button>`;
+          
+          const deleteBtn = `<button class="btn-danger-sm" style="margin-left: 6px; padding: 5px 8px; font-size: 11px; background: rgba(255,255,255,0.06); border-color: var(--border-glass); color: var(--text-muted);" title="Delete Record" onclick="deleteDevice('${dev.deviceId}')">✕</button>`;
+
+          return `
+            <tr>
+              <td style="font-family: var(--font-mono); color: var(--cyan);">${dev.deviceId || 'dev_xxxx'}</td>
+              <td><b>${escapeHtml(dev.deviceLabel || 'Hardware Device')}</b></td>
+              <td style="font-family: var(--font-mono); font-size: 11px;">${dev.ip || '127.0.0.1'}</td>
+              <td style="font-size: 11px; color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                ${escapeHtml(dev.userAgent || 'Unknown')}
+              </td>
+              <td style="font-size: 11px; color: var(--text-muted);">${dev.firstBoundAt ? new Date(dev.firstBoundAt).toLocaleString() : 'N/A'}</td>
+              <td>${statusBadge}</td>
+              <td style="display: flex; align-items: center;">
+                ${actionBtn}
+                ${deleteBtn}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } else {
+        devTbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No devices bound yet.</td></tr>';
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Step 3: Admin Actions
+    async function rotatePin() {
+      if (!confirm('Force rotate the 4-Hour Access PIN on the streaming server immediately?')) return;
+      try {
+        const res = await fetch('/api/admin/pin/rotate', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${sessionToken}` }
+        });
+        const data = await res.json();
+        const pin = data.activePin || data.newPin || 'Updated';
+        const pinEl = document.getElementById('statActivePin');
+        if (pinEl && (data.activePin || data.newPin)) pinEl.innerText = pin;
+        alert('PIN Rotated! New PIN: ' + pin);
+        loadDashboard(true);
+      } catch (err) {
+        alert('Rotate PIN Failed: ' + err.message);
+      }
+    }
+
+    async function cancelInvite(token) {
+      if (!confirm('Cancel this pending invite token?')) return;
+      try {
+        await fetch('/api/admin/invites/cancel', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+          },
+          body: JSON.stringify({ token })
+        });
+        loadDashboard();
+      } catch (err) {
+        alert('Cancel failed: ' + err.message);
+      }
+    }
+
+    async function revokeDevice(deviceId) {
+      if (!confirm(`Revoke device ${deviceId}? This device will be permanently locked out until re-authorized.`)) return;
+      try {
+        const res = await fetch('/api/admin/devices/revoke', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+          },
+          body: JSON.stringify({ deviceId })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          loadDashboard();
+        } else {
+          alert('Revoke Failed: ' + (data.message || 'Error'));
+        }
+      } catch (err) {
+        alert('Revoke Error: ' + err.message);
+      }
+    }
+
+    async function authorizeDevice(deviceId) {
+      try {
+        const res = await fetch('/api/admin/devices/authorize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+          },
+          body: JSON.stringify({ deviceId })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          loadDashboard();
+        } else {
+          alert('Authorize Failed: ' + (data.message || 'Error'));
+        }
+      } catch (err) {
+        alert('Authorize Error: ' + err.message);
+      }
+    }
+
+    async function deleteDevice(deviceId) {
+      if (!confirm(`Permanently delete device ${deviceId} from register?`)) return;
+      try {
+        const res = await fetch('/api/admin/devices/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+          },
+          body: JSON.stringify({ deviceId })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          loadDashboard();
+        } else {
+          alert('Delete Failed: ' + (data.message || 'Error'));
+        }
+      } catch (err) {
+        alert('Delete Error: ' + err.message);
+      }
+    }
+
+    // Invite Modal Logic
+    function openCreateInviteModal() {
+      document.getElementById('inviteResultBox').classList.add('hidden');
+      document.getElementById('createInviteModal').classList.remove('hidden');
+    }
+
+    function closeCreateInviteModal() {
+      document.getElementById('createInviteModal').classList.add('hidden');
+    }
+
+    async function submitCreateInvite() {
+      const label = document.getElementById('inviteLabelInput').value.trim() || 'Authorized Device';
+      const ttlMinutes = parseInt(document.getElementById('inviteTtlSelect').value, 10) || 15;
+      const btn = document.getElementById('genInviteBtn');
+      btn.innerText = 'Generating...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/admin/invites/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+          },
+          body: JSON.stringify({ label, ttlMinutes })
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+          document.getElementById('generatedUrlInput').value = data.inviteUrl;
+          document.getElementById('inviteResultBox').classList.remove('hidden');
+          loadDashboard();
+        } else {
+          alert('Failed to generate invite: ' + data.message);
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      } finally {
+        btn.innerText = '⚡ Generate Invite Link';
+        btn.disabled = false;
+      }
+    }
+
+    function copyInviteUrl() {
+      const input = document.getElementById('generatedUrlInput');
+      input.select();
+      navigator.clipboard.writeText(input.value);
+      alert('Invite link copied to clipboard! Send this to the user to enroll their device.');
+    }
+
+    // Auto-refresh every 15 seconds
+    setInterval(() => {
+      if (sessionToken) loadDashboard();
+    }, 15000);
+
+    // Init
+    checkAuth();
+  </script>
+</body>
+</html>

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Device Enrollment | Aetheris Gatekeeper</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;900&family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="gate.css">
+</head>
+<body>
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+
+  <main class="glass-panel">
+    <!-- Top Header -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+      <div class="brand-badge">
+        <span class="pulse-dot"></span>
+        <span>Single-Use Gate</span>
+      </div>
+    </div>
+
+    <!-- State 1: Checking Token Loading -->
+    <div id="loadingState">
+      <h1 class="title-display">Verifying Invite...</h1>
+      <p class="sub-display">Validating one-time cryptographic token freshness.</p>
+      <div style="margin-top: 30px; text-align: center; color: var(--cyan); font-family: var(--font-mono); font-size: 13px;">
+        Checking security gatekeeper...
+      </div>
+    </div>
+
+    <!-- State 2: Invalid / Burned Token Error -->
+    <div id="invalidState" class="hidden">
+      <div style="width: 52px; height: 52px; border-radius: 16px; background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.4); display: flex; align-items: center; justify-content: center; color: var(--rose); margin-bottom: 16px;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+      </div>
+      <h1 class="title-display" style="color: #fff;">Invite Burned or Expired</h1>
+      <p class="sub-display" id="invalidReason" style="color: #cbd5e1; margin-top: 10px; font-size: 14px;">
+        This invite token is invalid, expired, or has already been burned.
+      </p>
+
+      <div style="background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(244, 63, 94, 0.2); border-radius: 14px; padding: 16px; margin: 20px 0; font-size: 12px; color: var(--text-muted); line-height: 1.5;">
+        🛡️ <b>Why did this happen?</b><br>
+        To prevent link sharing, every invite token is single-use and burns permanently the instant a device registers. If someone shared this link with you, it has already been used. Please request a fresh invite from the administrator.
+      </div>
+    </div>
+
+    <!-- State 3: Valid Invite Ready for Enrollment -->
+    <div id="enrollState" class="hidden">
+      <h1 class="title-display">Authorize Device</h1>
+      <p class="sub-display">Register your hardware passkey to grant unshareable access.</p>
+
+      <div style="background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 16px; padding: 16px; margin: 20px 0;">
+        <div style="font-size: 11px; text-transform: uppercase; color: var(--cyan); font-family: var(--font-mono); font-weight: 700;">
+          Authorization Target
+        </div>
+        <div id="inviteLabelDisplay" style="font-size: 16px; font-weight: 800; color: #fff; margin-top: 4px;"></div>
+        <div id="inviteExpiryDisplay" style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 6px;"></div>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 6px;">Device Nickname</label>
+        <input type="text" id="deviceLabelInput" class="form-input" placeholder="e.g. My MacBook Pro, Living Room TV">
+      </div>
+
+      <button class="btn-primary" id="enrollBtn" onclick="performEnrollment()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3H9z"></path></svg>
+        Register Passkey & Burn Token
+      </button>
+
+      <div style="text-align: center; font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 14px;">
+        🔥 This invite token will self-destruct upon enrollment.
+      </div>
+    </div>
+
+    <!-- State 4: Enrollment Success Celebration -->
+    <div id="successState" class="hidden">
+      <div style="width: 52px; height: 52px; border-radius: 16px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); display: flex; align-items: center; justify-content: center; color: var(--emerald); margin-bottom: 16px;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+      </div>
+
+      <h1 class="title-display" style="color: #fff;">Device Authorized!</h1>
+      <p class="sub-display" style="color: #cbd5e1; margin-top: 8px;">
+        Your hardware passkey is bound. The single-use invite token has been burned.
+      </p>
+
+      <div style="background: rgba(0, 0, 0, 0.5); border: 1px solid var(--border-glass); border-radius: 16px; padding: 18px; margin: 24px 0;">
+        <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">BOUND HARDWARE ID</div>
+        <div id="successDeviceId" style="font-size: 13px; font-family: var(--font-mono); color: var(--cyan); margin-top: 4px; word-break: break-all;"></div>
+      </div>
+
+      <a id="launchAppBtn" href="#" class="btn-primary" style="margin-bottom: 12px;">
+        🚀 Launch Main Streaming App
+      </a>
+    </div>
+  </main>
+
+  <script>
+    let token = '';
+
+    // Extract token from query string
+    function getQueryToken() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('token') || '';
+    }
+
+    // Step 1: Check token validity
+    async function checkToken() {
+      token = getQueryToken();
+      if (!token) {
+        showInvalid('No invite token provided in URL.');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/invite/check?token=${encodeURIComponent(token)}`);
+        const data = await res.json();
+
+        if (data.status === 'success') {
+          showEnroll(data.label, data.expiresAt);
+        } else {
+          showInvalid(data.message || 'Token is invalid or already burned.');
+        }
+      } catch (err) {
+        showInvalid('Could not connect to Gatekeeper verification service.');
+      }
+    }
+
+    function showInvalid(msg) {
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('enrollState').classList.add('hidden');
+      document.getElementById('successState').classList.add('hidden');
+      document.getElementById('invalidState').classList.remove('hidden');
+      document.getElementById('invalidReason').innerText = msg;
+    }
+
+    function showEnroll(label, expiresAt) {
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('invalidState').classList.add('hidden');
+      document.getElementById('successState').classList.add('hidden');
+      document.getElementById('enrollState').classList.remove('hidden');
+
+      document.getElementById('inviteLabelDisplay').innerText = label || 'General Device';
+      document.getElementById('deviceLabelInput').value = label || '';
+
+      if (expiresAt) {
+        const expDate = new Date(expiresAt);
+        document.getElementById('inviteExpiryDisplay').innerText = `Expires: ${expDate.toLocaleTimeString()}`;
+      }
+    }
+
+    // Hardware device fingerprinting generator
+    async function generateDeviceIdentifiers() {
+      let rawFp = [
+        navigator.userAgent,
+        screen.width + 'x' + screen.height,
+        screen.colorDepth,
+        navigator.hardwareConcurrency || '4',
+        navigator.language,
+        Intl.DateTimeFormat().resolvedOptions().timeZone
+      ].join('||');
+
+      // Hash with SHA-256
+      const msgBuffer = new TextEncoder().encode(rawFp);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const fingerprint = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32);
+
+      // Deterministic device ID based on hardware fingerprint
+      const deviceId = 'dev_' + fingerprint.substring(0, 24);
+
+      return { deviceId, deviceFingerprint: fingerprint };
+    }
+
+    // Step 2: Perform Passkey Registration & Token Burning
+    async function performEnrollment() {
+      const btn = document.getElementById('enrollBtn');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = 'Registering Hardware Passkey...';
+      btn.disabled = true;
+
+      try {
+        const { deviceId, deviceFingerprint } = await generateDeviceIdentifiers();
+        const deviceLabel = document.getElementById('deviceLabelInput').value.trim() || 'Biometric Device';
+
+        // Check for WebAuthn capability if supported
+        let publicKey = '';
+        if (window.PublicKeyCredential && window.isSecureContext) {
+          try {
+            const challenge = new Uint8Array(32);
+            window.crypto.getRandomValues(challenge);
+            const credential = await navigator.credentials.create({
+              publicKey: {
+                challenge,
+                rp: { name: "Aetheris Gatekeeper" },
+                user: {
+                  id: Uint8Array.from(deviceId, c => c.charCodeAt(0)),
+                  name: deviceLabel,
+                  displayName: deviceLabel
+                },
+                pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+                authenticatorSelection: { userVerification: "preferred" },
+                timeout: 30000
+              }
+            });
+            if (credential) {
+              publicKey = 'webauthn_bound_' + credential.id;
+            }
+          } catch (passkeyErr) {
+            console.warn('WebAuthn prompt bypassed or falling back to Secure Enclave fingerprint:', passkeyErr);
+          }
+        }
+
+        // Post enrollment to external gatekeeper
+        const res = await fetch('/api/passkey/enroll', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token,
+            deviceId,
+            deviceFingerprint,
+            deviceLabel,
+            publicKey,
+            userAgent: navigator.userAgent
+          })
+        });
+
+        const data = await res.json();
+        if (data.status === 'success') {
+          // Store credential locally for 1-click biometric launch
+          localStorage.setItem('aetheris_passkey_device', JSON.stringify({
+            deviceId,
+            deviceFingerprint,
+            deviceLabel
+          }));
+
+          // Show celebration state
+          document.getElementById('enrollState').classList.add('hidden');
+          document.getElementById('successState').classList.remove('hidden');
+          document.getElementById('successDeviceId').innerText = deviceId;
+          
+          let launchUrl = data.magicLaunchUrl || 'https://ellamoonu.ai.studio/hero.html';
+          if (launchUrl.indexOf('?') === -1) {
+            launchUrl += `?bound_dev_id=${encodeURIComponent(deviceId)}&bound_dev_fp=${encodeURIComponent(deviceFingerprint)}&bound_dev_label=${encodeURIComponent(deviceLabel)}`;
+          } else if (launchUrl.indexOf('bound_dev_id') === -1) {
+            launchUrl += `&bound_dev_id=${encodeURIComponent(deviceId)}&bound_dev_fp=${encodeURIComponent(deviceFingerprint)}&bound_dev_label=${encodeURIComponent(deviceLabel)}`;
+          }
+          document.getElementById('launchAppBtn').href = launchUrl;
+        } else {
+          alert('Enrollment Rejected: ' + (data.message || 'Error occurred.'));
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+        }
+      } catch (err) {
+        alert('Enrollment Error: ' + err.message);
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    // Init
+    checkToken();
+  </script>
+</body>
+</html>

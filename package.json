@@ -1,0 +1,13 @@
+{
+  "name": "aetheris-external-gate",
+  "version": "1.0.0",
+  "description": "Standalone External Gatekeeper Portal & Biometric Passkey Admin Suite for Stalker Pro 2.0 / Aetheris",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  }
+}
