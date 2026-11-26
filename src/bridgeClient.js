@@ -9,8 +9,9 @@ const DEFAULT_GATE_ED25519_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEICmIzEAqnicsaL39MoyIZv3V0LhL6BeyYrf2piwnzQL+
 -----END PRIVATE KEY-----`;
 
+const KEY_ID = 'ed25519-2026-v1';
+const DESTINATION = (process.env.GATE_DESTINATION || 'ellamoonu.ai.studio').trim();
 const GATE_PRIVATE_KEY = (process.env.GATE_PRIVATE_KEY || config.privateKey || DEFAULT_GATE_ED25519_PRIVATE_KEY).trim();
-const GATE_BRIDGE_SECRET = (process.env.GATE_BRIDGE_SECRET || config.bridgeSecret || 'aetheris_gate_secret_super_secure_2026').trim();
 const MAIN_SERVER_URL = (process.env.MAIN_SERVER_URL || config.mainServerUrl || 'https://ellamoonu.ai.studio').trim();
 
 function requestMainServer(endpoint, method = 'GET', data = null) {
@@ -22,36 +23,33 @@ function requestMainServer(endpoint, method = 'GET', data = null) {
         const ts = Math.floor(Date.now() / 1000).toString();
         // 32-character random hex nonce
         const nonce = crypto.randomBytes(16).toString('hex');
-        const bodyStr = (data && typeof data === 'object' && Object.keys(data).length > 0) ? JSON.stringify(data) : '';
-        const bodyBuffer = Buffer.from(bodyStr, 'utf8');
+        const bodyBuffer = (data && typeof data === 'object' && Object.keys(data).length > 0)
+            ? Buffer.from(JSON.stringify(data), 'utf8')
+            : Buffer.alloc(0);
 
-        // Target path with query string as seen by main server
+        // Target path with query string strictly as formatted by URL (matching req.originalUrl)
         const targetPath = u.pathname + u.search;
         // SHA-256 hash of the exact body bytes
         const bodyHash = crypto.createHash('sha256').update(bodyBuffer).digest('hex');
-        // Canonical payload: timestamp\nnonce\nMETHOD\nurlPath\nbodyHash
-        const dataToSign = [ts, nonce, method.toUpperCase(), targetPath, bodyHash].join('\n');
+        // Canonical payload: keyId\ndestination\ntimestamp\nnonce\nMETHOD\nurlPath\nbodyHash
+        const dataToSign = [KEY_ID, DESTINATION, ts, nonce, method.toUpperCase(), targetPath, bodyHash].join('\n');
 
-        let signature = '';
-        if (GATE_PRIVATE_KEY) {
-            // Ed25519 Asymmetric Signature (128 hex characters)
-            signature = crypto.sign(null, Buffer.from(dataToSign, 'utf8'), GATE_PRIVATE_KEY).toString('hex');
-        } else {
-            // HMAC-SHA256 Fallback (64 hex characters)
-            signature = crypto.createHmac('sha256', GATE_BRIDGE_SECRET).update(dataToSign).digest('hex');
-        }
+        // Pure Ed25519 Asymmetric Signature (128 hex characters)
+        const signature = crypto.sign(null, Buffer.from(dataToSign, 'utf8'), GATE_PRIVATE_KEY).toString('hex');
 
         const headers = {
             'User-Agent': 'Aetheris-Gatekeeper-Bridge/3.0',
             'Accept': 'application/json',
+            'x-gate-key-id': KEY_ID,
+            'x-gate-destination': DESTINATION,
             'x-gate-timestamp': ts,
             'x-gate-nonce': nonce,
             'x-gate-signature': signature
         };
 
-        if (bodyStr) {
+        if (bodyBuffer.length > 0) {
             headers['Content-Type'] = 'application/json';
-            headers['Content-Length'] = Buffer.byteLength(bodyBuffer);
+            headers['Content-Length'] = bodyBuffer.length;
         }
 
         const req = lib.request(u, {
