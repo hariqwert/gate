@@ -3,35 +3,55 @@ const https = require('https');
 const crypto = require('crypto');
 const config = require('../config.json');
 
-const GATE_BRIDGE_SECRET = process.env.GATE_BRIDGE_SECRET || config.bridgeSecret;
-const MAIN_SERVER_URL = process.env.MAIN_SERVER_URL || config.mainServerUrl;
-const GATE_INTERNAL_KEY = crypto.createHash('sha256').update(`${GATE_BRIDGE_SECRET}:internal_gatekeeper_v1`).digest('hex');
+// Asymmetric Ed25519 Private Key: The Gatekeeper uses this to sign requests.
+// The main server holds ONLY the corresponding public key and cannot forge signatures.
+const DEFAULT_GATE_ED25519_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VwBCIEICmIzEAqnicsaL39MoyIZv3V0LhL6BeyYrf2piwnzQL+
+-----END PRIVATE KEY-----`;
+
+const GATE_PRIVATE_KEY = (process.env.GATE_PRIVATE_KEY || config.privateKey || DEFAULT_GATE_ED25519_PRIVATE_KEY).trim();
+const GATE_BRIDGE_SECRET = (process.env.GATE_BRIDGE_SECRET || config.bridgeSecret || 'aetheris_gate_secret_super_secure_2026').trim();
+const MAIN_SERVER_URL = (process.env.MAIN_SERVER_URL || config.mainServerUrl || 'https://ellamoonu.ai.studio').trim();
 
 function requestMainServer(endpoint, method = 'GET', data = null) {
     return new Promise((resolve, reject) => {
         const u = new URL(endpoint, MAIN_SERVER_URL);
         const lib = u.protocol === 'https:' ? https : http;
 
-        const timestampStr = Date.now().toString();
+        // Strict 10-digit Unix timestamp in seconds
+        const ts = Math.floor(Date.now() / 1000).toString();
+        // 32-character random hex nonce
         const nonce = crypto.randomBytes(16).toString('hex');
         const bodyStr = (data && typeof data === 'object' && Object.keys(data).length > 0) ? JSON.stringify(data) : '';
+        const bodyBuffer = Buffer.from(bodyStr, 'utf8');
 
-        // Compute HMAC-SHA256 signature
-        const payload = `${timestampStr}:${nonce}:${bodyStr}`;
-        const signature = crypto.createHmac('sha256', GATE_BRIDGE_SECRET).update(payload).digest('hex');
+        // Target path with query string as seen by main server
+        const targetPath = u.pathname + u.search;
+        // SHA-256 hash of the exact body bytes
+        const bodyHash = crypto.createHash('sha256').update(bodyBuffer).digest('hex');
+        // Canonical payload: timestamp\nnonce\nMETHOD\nurlPath\nbodyHash
+        const dataToSign = [ts, nonce, method.toUpperCase(), targetPath, bodyHash].join('\n');
+
+        let signature = '';
+        if (GATE_PRIVATE_KEY) {
+            // Ed25519 Asymmetric Signature (128 hex characters)
+            signature = crypto.sign(null, Buffer.from(dataToSign, 'utf8'), GATE_PRIVATE_KEY).toString('hex');
+        } else {
+            // HMAC-SHA256 Fallback (64 hex characters)
+            signature = crypto.createHmac('sha256', GATE_BRIDGE_SECRET).update(dataToSign).digest('hex');
+        }
 
         const headers = {
-            'User-Agent': 'Aetheris-Gatekeeper-Bridge/2.0',
+            'User-Agent': 'Aetheris-Gatekeeper-Bridge/3.0',
             'Accept': 'application/json',
-            'x-gate-key': GATE_INTERNAL_KEY,
-            'x-gate-timestamp': timestampStr,
+            'x-gate-timestamp': ts,
             'x-gate-nonce': nonce,
             'x-gate-signature': signature
         };
 
         if (bodyStr) {
             headers['Content-Type'] = 'application/json';
-            headers['Content-Length'] = Buffer.byteLength(bodyStr);
+            headers['Content-Length'] = Buffer.byteLength(bodyBuffer);
         }
 
         const req = lib.request(u, {
@@ -61,7 +81,7 @@ function requestMainServer(endpoint, method = 'GET', data = null) {
             reject(new Error('Main server connection timeout (10s)'));
         });
 
-        if (bodyStr) req.write(bodyStr);
+        if (bodyStr) req.write(bodyBuffer);
         req.end();
     });
 }
