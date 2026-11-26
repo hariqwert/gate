@@ -1,22 +1,42 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const http = require('http');
 const https = require('https');
 const crypto = require('crypto');
 const config = require('../config.json');
 
-// Asymmetric Ed25519 Private Key: The Gatekeeper uses this to sign requests.
-// The main server holds ONLY the corresponding public key and cannot forge signatures.
-const DEFAULT_GATE_ED25519_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEICmIzEAqnicsaL39MoyIZv3V0LhL6BeyYrf2piwnzQL+
------END PRIVATE KEY-----`;
+function parseKey(keyStr) {
+    if (!keyStr) return '';
+    return keyStr.trim().replace(/\\n/g, '\n');
+}
 
-const KEY_ID = 'ed25519-2026-v1';
+const rawPrivateKey = parseKey(process.env.GATE_PRIVATE_KEY || config.privateKey);
+if (!rawPrivateKey || !rawPrivateKey.includes('PRIVATE KEY')) {
+    throw new Error('FATAL: GATE_PRIVATE_KEY environment variable is missing. Set a valid Ed25519 private key in PEM format.');
+}
+const GATE_PRIVATE_KEY = rawPrivateKey;
+
+const KEY_ID = (process.env.GATE_KEY_ID || 'ed25519-2026-v1').trim();
 const DESTINATION = (process.env.GATE_DESTINATION || 'ellamoonu.ai.studio').trim();
-const GATE_PRIVATE_KEY = (process.env.GATE_PRIVATE_KEY || config.privateKey || DEFAULT_GATE_ED25519_PRIVATE_KEY).trim();
 const MAIN_SERVER_URL = (process.env.MAIN_SERVER_URL || config.mainServerUrl || 'https://ellamoonu.ai.studio').trim();
+
+const configuredTarget = new URL(MAIN_SERVER_URL);
+if (configuredTarget.protocol !== 'https:' && process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: MAIN_SERVER_URL must use HTTPS protocol in production');
+}
 
 function requestMainServer(endpoint, method = 'GET', data = null) {
     return new Promise((resolve, reject) => {
-        const u = new URL(endpoint, MAIN_SERVER_URL);
+        // Enforce that endpoint is a relative path starting with /api/gate/
+        if (typeof endpoint !== 'string' || !endpoint.startsWith('/api/gate/')) {
+            return reject(new Error('Invalid endpoint: must be a relative path starting with /api/gate/'));
+        }
+
+        const u = new URL(endpoint, configuredTarget.origin);
+        if (u.origin !== configuredTarget.origin) {
+            return reject(new Error('Invalid destination origin: host mismatch with configured MAIN_SERVER_URL'));
+        }
+
         const lib = u.protocol === 'https:' ? https : http;
 
         // Strict 10-digit Unix timestamp in seconds
@@ -79,7 +99,7 @@ function requestMainServer(endpoint, method = 'GET', data = null) {
             reject(new Error('Main server connection timeout (10s)'));
         });
 
-        if (bodyStr) req.write(bodyBuffer);
+        if (bodyBuffer.length > 0) req.write(bodyBuffer);
         req.end();
     });
 }

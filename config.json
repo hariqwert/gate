@@ -1,7 +1,6 @@
 {
   "gatePort": 3050,
   "mainServerUrl": "https://ellamoonu.ai.studio",
-  "bridgeSecret": "aetheris_gate_secret_super_secure_2026",
   "adminMasterKey": "AetherisGate2026!Master",
   "gatePassword": "200812",
   "relyingPartyId": "ellamkeeper.ai.studio",
