@@ -1,4 +1,6 @@
 node_modules/
+bin/TorrServer*
+bin/db/*.db*
 .env
 .env.local
 *.log

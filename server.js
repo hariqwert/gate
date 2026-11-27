@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const config = require('./config.json');
 const bridgeClient = require('./src/bridgeClient');
 const tokenManager = require('./src/tokenManager');
+const torrServerManager = require('./src/torrServerManager');
 
 const app = express();
 const PORT = process.env.GATE_PORT || config.gatePort || 3050;
@@ -502,11 +503,43 @@ app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
+// =========================================================================
+// 4. EMBEDDED TORRSERVER CLOUD & LOCAL BRIDGE
+// =========================================================================
+
+app.get('/api/torrserver/status', (req, res) => {
+    res.json({
+        status: 'ok',
+        service: 'Aetheris Gatekeeper & TorrServer Cloud Engine',
+        torrserver: torrServerManager.getStatus()
+    });
+});
+
+// Full TorrServer Web UI Dashboard running on Gatekeeper port (3050)
+app.all(/^\/(?:torr|torrweb)(?:\/.*)?$/, (req, res) => {
+    torrServerManager.proxyTorrStream(req, res);
+});
+
+// TorrServer Web UI static assets on Gatekeeper port (3050)
+app.all(/^\/(?:static|lord-icon-2\.0\.2\.js|site\.webmanifest|apple-splash|favicon\.ico|icon\.png)(?:.*)?$/, (req, res) => {
+    torrServerManager.proxyTorrStream(req, res);
+});
+
+app.all('/torrents', torrServerManager.proxyTorrApi);
+app.all('/settings', torrServerManager.proxyTorrApi);
+app.all('/echo', torrServerManager.proxyTorrApi);
+app.all('/viewed', torrServerManager.proxyTorrApi);
+app.all(/^\/(?:stream|play)(?:\/.*)?$/, torrServerManager.proxyTorrStream);
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log('==================================================================');
     console.log(`🛡️  Aetheris External Gatekeeper Portal running on port ${PORT}`);
     console.log(`📡 Linked to Main Streaming Server at: ${config.mainServerUrl}`);
+    console.log(`⚡ Embedded TorrServer: http://localhost:${PORT}/echo (internal :8090)`);
     console.log(`👉 Member Portal: http://localhost:${PORT}/`);
     console.log(`👉 Admin Suite:  http://localhost:${PORT}/admin`);
     console.log('==================================================================');
+
+    // Automatically spawn & manage TorrServer engine inside Gatekeeper
+    torrServerManager.startTorrServer();
 });

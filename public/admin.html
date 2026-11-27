@@ -95,6 +95,16 @@
         <div id="statInviteCount" style="font-size: 22px; font-weight: 900; color: var(--amber); margin-top: 6px;">0</div>
         <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Burn upon registration</div>
       </div>
+
+      <!-- Card 5: TorrServer Engine -->
+      <div style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-glass); border-radius: 18px; padding: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase;">TorrServer Engine</div>
+          <a href="/torr" target="_blank" style="font-size: 10px; color: var(--cyan); text-decoration: none;">Dashboard &nearr;</a>
+        </div>
+        <div id="statTorrState" style="font-size: 18px; font-weight: 800; color: var(--emerald); margin-top: 6px;">● Online</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">200MB RAM Pre-cache Active</div>
+      </div>
     </div>
 
     <!-- Section 1: Pending Single-Use Invites -->
@@ -283,6 +293,17 @@
 
       document.getElementById('statBoundCount').innerText = boundDevices ? boundDevices.length : '0';
       document.getElementById('statInviteCount').innerText = activeInvites ? activeInvites.length : '0';
+
+      fetch('/api/torrserver/status')
+        .then(r => r.json())
+        .then(d => {
+          const el = document.getElementById('statTorrState');
+          if (el && d?.torrserver?.isHealthy) {
+            el.innerHTML = `<span style="color:var(--emerald);">● Online (Port ${d.torrserver.port})</span>`;
+          } else if (el) {
+            el.innerHTML = `<span style="color:var(--amber);">Starting Up...</span>`;
+          }
+        }).catch(() => {});
 
       // Render Pending Invites
       const invitesTbody = document.getElementById('invitesTableBody');
