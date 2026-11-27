@@ -516,6 +516,14 @@ app.get('/api/torrserver/status', (req, res) => {
 });
 
 // Full TorrServer Web UI Dashboard running on Gatekeeper port (3050)
+app.get(['/torr', '/torrweb'], (req, res, next) => {
+    if (!req.url.endsWith('/')) {
+        const query = req.url.includes('?') ? '?' + req.url.split('?')[1] : '';
+        return res.redirect(301, req.path + '/' + query);
+    }
+    next();
+});
+
 app.all(/^\/(?:torr|torrweb)(?:\/.*)?$/, (req, res) => {
     torrServerManager.proxyTorrStream(req, res);
 });
@@ -529,7 +537,7 @@ app.all('/torrents', torrServerManager.proxyTorrApi);
 app.all('/settings', torrServerManager.proxyTorrApi);
 app.all('/echo', torrServerManager.proxyTorrApi);
 app.all('/viewed', torrServerManager.proxyTorrApi);
-app.all(/^\/(?:stream|play)(?:\/.*)?$/, torrServerManager.proxyTorrStream);
+app.all(/^\/(?:stream|play|files|playlist)(?:\/.*)?$/, torrServerManager.proxyTorrStream);
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log('==================================================================');

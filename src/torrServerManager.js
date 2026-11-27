@@ -6,8 +6,16 @@ const https = require('https');
 const axios = require('axios');
 
 const isWin = process.platform === 'win32';
-const BIN_DIR = path.join(__dirname, '..', 'bin');
-const DB_DIR = path.join(BIN_DIR, 'db');
+let BIN_DIR = path.join(__dirname, '..', 'bin');
+try {
+    if (!fs.existsSync(BIN_DIR)) fs.mkdirSync(BIN_DIR, { recursive: true });
+    fs.accessSync(BIN_DIR, fs.constants.W_OK);
+} catch {
+    BIN_DIR = path.join('/tmp', 'torr_bin');
+    if (!fs.existsSync(BIN_DIR)) fs.mkdirSync(BIN_DIR, { recursive: true });
+}
+
+const DB_DIR = isWin ? path.join(BIN_DIR, 'db') : path.join('/tmp', 'torr_db');
 const TORR_PORT = parseInt(process.env.TORR_INTERNAL_PORT || '8090', 10);
 const TORR_BIN_NAME = isWin ? 'TorrServer.exe' : 'TorrServer';
 const TORR_BIN_PATH = path.join(BIN_DIR, TORR_BIN_NAME);
@@ -17,7 +25,6 @@ let isStarting = false;
 let isHealthy = false;
 let startTime = 0;
 
-if (!fs.existsSync(BIN_DIR)) fs.mkdirSync(BIN_DIR, { recursive: true });
 if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
 
 function getTorrBaseUrl() {
